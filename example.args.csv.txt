@@ -1,0 +1,26 @@
+--jira-project
+TEAM1
+--jira-project
+TEAM2
+--jira-label
+version-1.0
+--jira-issue-type
+Bug
+--jira-issue-type
+Chore
+--jira-issue-type
+Spike
+--jira-issue-type
+Story
+--jira-issue-type
+Task
+--jira-issue-type
+Unreleased Bug
+--jira-story-points-field
+Story Points
+--jira-url
+https://mycompany.example.com
+--jira-username
+me@mycompany.com
+--jira-token
+thisisafaketoken
