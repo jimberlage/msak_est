@@ -46,7 +46,7 @@ struct CSVIssue {
 }
 
 pub fn run(args: &CSV) {
-    let client = RestClient::new(&args.jira_url, &args.jira_username, &args.jira_token);
+    let client = RestClient::new(&args.jira_url, &args.jira_username, &args.jira_token).unwrap();
 
     let mut field_ids = client
         .get_story_point_field_ids(&args.jira_story_points_field)

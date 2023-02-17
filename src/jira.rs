@@ -1,6 +1,9 @@
 /// Contains all code related to interfacing with JIRA.
 /// This includes functionality for getting projects and breaking them down into initiatives.
-use std::collections::HashMap;
+use std::{
+    collections::HashMap,
+    fmt::{self, Display},
+};
 
 use base64::{
     self,
@@ -12,7 +15,7 @@ use reqwest::{
     blocking::{Client, ClientBuilder, RequestBuilder},
     header::{HeaderMap, HeaderValue, ACCEPT, AUTHORIZATION, CONTENT_TYPE},
 };
-use serde::{Deserialize, Serialize};
+use serde::{ser::SerializeMap, Deserialize, Serialize, Serializer};
 use serde_json::value::Value as JSONValue;
 
 use crate::util;
@@ -40,7 +43,7 @@ pub struct Issue {
 impl Issue {
     pub fn status_category(&self) -> Option<String> {
         if let Some(status_obj) = self.fields.get("status") {
-            let path = vec!["statusCategory".to_owned(), "name".to_owned()];
+            let path = vec!["statusCategory", "name"];
 
             return util::get_string_in_json(status_obj, &path);
         }
@@ -79,6 +82,46 @@ struct SearchRequest {
     start_at: u64,
 }
 
+#[derive(Clone, Debug)]
+pub enum IssueEditUpdateLabel {
+    Add(String),
+    /* Remove would go here */
+}
+
+impl Serialize for IssueEditUpdateLabel {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        match self {
+            IssueEditUpdateLabel::Add(label) => {
+                let mut m = serializer.serialize_map(Some(1))?;
+                m.serialize_entry("add", label)?;
+                m.end()
+            }
+        }
+    }
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct IssueEditUpdate {
+    pub labels: Vec<IssueEditUpdateLabel>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct IssueEditRequest {
+    pub update: IssueEditUpdate,
+}
+
+#[derive(Debug)]
+pub struct RestClientInitializationError(pub reqwest::Error);
+
+impl Display for RestClientInitializationError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "There was a problem initializing a connection to JIRA to make a reusable client.  It's worth checking that you have the right JIRA URL specified.  You can run the command with --debug to see the full error.")
+    }
+}
+
 pub struct RestClient {
     base_url: String,
     client: Client,
@@ -86,7 +129,11 @@ pub struct RestClient {
 
 impl RestClient {
     /// Initialize a RestClient for the URL, with the given username and token.
-    pub fn new(url: &str, username: &str, token: &str) -> Self {
+    pub fn new(
+        url: &str,
+        username: &str,
+        token: &str,
+    ) -> Result<Self, RestClientInitializationError> {
         let base64_engine =
             GeneralPurpose::new(&base64::alphabet::URL_SAFE, GeneralPurposeConfig::new());
 
@@ -98,12 +145,12 @@ impl RestClient {
         let client = ClientBuilder::new()
             .default_headers(default_headers)
             .build()
-            .unwrap();
+            .map_err(|e| RestClientInitializationError(e))?;
 
-        RestClient {
+        Ok(RestClient {
             base_url: format!("{}/rest/api/3", url),
             client,
-        }
+        })
     }
 
     fn add_auth_header(
@@ -113,6 +160,8 @@ impl RestClient {
         token: &str,
     ) {
         let encoded = base64_engine.encode(format!("{}:{}", username, token));
+        // Unwrap here is considered safe since the method returns an error if the input is out of bounds, which would
+        // have to be a bug in the base64 library.
         let mut auth_header_value =
             HeaderValue::from_str(format!("Basic {}", encoded).as_str()).unwrap();
         auth_header_value.set_sensitive(true);
@@ -125,6 +174,10 @@ impl RestClient {
 
     fn post(&self, path: &str) -> RequestBuilder {
         self.client.post(format!("{}/{}", self.base_url, path))
+    }
+
+    fn put(&self, path: &str) -> RequestBuilder {
+        self.client.put(format!("{}/{}", self.base_url, path))
     }
 
     pub fn get_fields(&self) -> Result<Vec<Field>, reqwest::Error> {
@@ -194,6 +247,17 @@ impl RestClient {
         }
 
         Ok(result)
+    }
+
+    pub fn edit_issue(&self, key: &str, update: &IssueEditUpdate) -> Result<(), reqwest::Error> {
+        let path = format!("/issue/{}", key);
+        let response = self
+            .put(&path)
+            .json(&IssueEditRequest {
+                update: update.clone(),
+            })
+            .send()?;
+        response.json()
     }
 }
 
