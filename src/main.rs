@@ -1,6 +1,5 @@
 mod cli;
 mod jira;
-mod util;
 
 use std::process;
 

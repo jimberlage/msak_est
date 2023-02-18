@@ -2,9 +2,10 @@ use std::{io, process};
 
 use clap::Args;
 use csv;
+use jimberlage_jira_client::{self, RestClient};
 use serde::Serialize;
 
-use crate::jira::{self, RestClient};
+use crate::jira;
 
 #[derive(Debug, Args)]
 pub struct CSV {
@@ -48,9 +49,8 @@ struct CSVIssue {
 pub fn run(args: &CSV) {
     let client = RestClient::new(&args.jira_url, &args.jira_username, &args.jira_token).unwrap();
 
-    let mut field_ids = client
-        .get_story_point_field_ids(&args.jira_story_points_field)
-        .unwrap();
+    let mut field_ids =
+        jira::get_story_point_field_ids(&client, &args.jira_story_points_field).unwrap();
     field_ids.push("status".to_owned());
 
     let jql =
@@ -60,14 +60,14 @@ pub fn run(args: &CSV) {
         process::exit(1);
     }
 
-    let issues = client.search(&field_ids, &jql.unwrap()).unwrap();
+    let issues = client.search_all(&field_ids, &jql.unwrap()).unwrap();
     let mut writer = csv::Writer::from_writer(io::stdout());
 
     for issue in issues {
         writer
             .serialize(CSVIssue {
                 key: issue.key.clone(),
-                story_points: issue.story_points(&field_ids),
+                story_points: jira::story_points(&issue, &field_ids),
                 status: issue.status_category(),
                 link: format!("{}/browse/{}", &args.jira_url, &issue.key),
             })

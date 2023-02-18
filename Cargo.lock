@@ -456,6 +456,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fad582f4b9e86b6caa621cabeb0963332d92eea04729ab12892c2533951e6440"
 
 [[package]]
+name = "jimberlage_jira_client"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "89234805bb3a01cccc8ff15ea7c41547d725b716148f632fab990e59e98eb0ee"
+dependencies = [
+ "base64",
+ "reqwest",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "js-sys"
 version = "0.3.61"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -847,6 +859,7 @@ dependencies = [
  "clap",
  "colored",
  "csv",
+ "jimberlage_jira_client",
  "reqwest",
  "serde",
  "serde_json",

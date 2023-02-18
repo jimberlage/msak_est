@@ -1,6 +1,6 @@
 use clap::Args;
 
-use crate::jira::{IssueEditUpdate, IssueEditUpdateLabel, RestClient};
+use jimberlage_jira_client::{IssueEditUpdate, IssueEditUpdateLabel, RestClient};
 
 #[derive(Debug, Args)]
 pub struct Tag {
