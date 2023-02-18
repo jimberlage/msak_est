@@ -2,8 +2,9 @@ use std::process;
 
 use clap::Args;
 use colored::Colorize;
+use jimberlage_jira_client::{self, jql::SerializableToJQL, RestClient, SearchIssue};
 
-use crate::jira::{self, Issue, RestClient};
+use crate::jira;
 
 #[derive(Debug, Args)]
 pub struct Estimate {
@@ -47,14 +48,14 @@ enum ClassifiedIssue {
     IncompleteAndUnpointed,
 }
 
-fn classify(issue: &Issue, field_ids: &Vec<String>) -> ClassifiedIssue {
+fn classify(issue: &SearchIssue, field_ids: &Vec<String>) -> ClassifiedIssue {
     if let Some(status) = &issue.status_category() {
         if status == "Done" {
             return ClassifiedIssue::Complete;
         }
     }
 
-    if let Some(points) = issue.story_points(field_ids) {
+    if let Some(points) = jira::story_points(issue, field_ids) {
         if points == 0.0 {
             return ClassifiedIssue::IncompleteAndUnpointed;
         }
@@ -112,7 +113,7 @@ impl Results {
     }
 
     fn tally(
-        issues: &Vec<Issue>,
+        issues: &Vec<SearchIssue>,
         field_ids: &Vec<String>,
         default_story_points: f64,
         velocity_in_story_points: f64,
@@ -158,11 +159,10 @@ impl Results {
 }
 
 pub fn run(args: &Estimate) {
-    let client = RestClient::new(&args.jira_url, &args.jira_username, &args.jira_token);
+    let client = RestClient::new(&args.jira_url, &args.jira_username, &args.jira_token).unwrap();
 
-    let mut field_ids = client
-        .get_story_point_field_ids(&args.jira_story_points_field)
-        .unwrap();
+    let mut field_ids =
+        jira::get_story_point_field_ids(&client, &args.jira_story_points_field).unwrap();
     field_ids.push("status".to_owned());
 
     let maybe_jql =
@@ -175,10 +175,10 @@ pub fn run(args: &Estimate) {
     let jql = maybe_jql.unwrap();
     if args.verbose {
         println!("Searching for issues with the following JQL:");
-        println!("{}", jql.serialize_internal());
+        println!("{}", jql.serialize_to_jql());
     }
 
-    let issues = client.search(&field_ids, &jql).unwrap();
+    let issues = client.search_all(&field_ids, &jql).unwrap();
 
     let results = Results::tally(
         &issues,

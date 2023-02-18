@@ -11,6 +11,7 @@ base64 = "0.21"
 clap = { version = "4.1", features = ["derive"] }
 colored = "2.0.0"
 csv = "1.2"
+jimberlage_jira_client = "1.0.0"
 reqwest = { version = "0.11", features = ["blocking", "json"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"

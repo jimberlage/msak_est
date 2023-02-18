@@ -1,0 +1,8 @@
+--jira-url
+https://mycompany.example.com
+--jira-username
+me@mycompany.com
+--jira-token
+thisisafaketoken
+--velocity-in-story-points
+20
